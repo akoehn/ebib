@@ -46,6 +46,7 @@
   (comments)                                ; List of @COMMENTS.
   (local-vars)                              ; The file's local variable block.
   (dialect)                                 ; The dialect of this database.
+  (buffer)                                  ; The index buffer.
   (cur-entry)                               ; The current entry.
   (marked-entries)                          ; List of marked entries.
   (filter)                                  ; The active filter.
@@ -69,6 +70,8 @@ it is deleted."
   (setf (ebib--db-struct-comments db) nil)
   (setf (ebib--db-struct-local-vars db) nil)
   (setf (ebib--db-struct-dialect db) nil)
+  (kill-buffer (ebib--db-struct-buffer db))
+  (setf (ebib--db-struct-buffer db) nil)
   (setf (ebib--db-struct-cur-entry db) nil)
   (setf (ebib--db-struct-marked-entries db) nil)
   (setf (ebib--db-struct-filter db) nil)
@@ -105,6 +108,14 @@ No check is performed to see if VARS is really a local variable block."
 (defun ebib-db-get-local-vars (db)
   "Return the local variable block of DB."
   (ebib--db-struct-local-vars db))
+
+(defun ebib-db-get-buffer (db)
+  "Return the index buffer of DB."
+  (ebib--db-struct-buffer db))
+
+(defun ebib-db-set-buffer (buffer db)
+  "Set BUFFER as DB's index buffer."
+  (setf (ebib--db-struct-buffer db) buffer))
 
 (defun ebib--db-get-current-entry-key (db)
   "Return the key of the current entry in DB."
