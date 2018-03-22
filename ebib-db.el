@@ -391,10 +391,11 @@ IF-EXISTS is nil, an existing filename triggers an error."
 (defun ebib-db-get-filename (db &optional shortened)
   "Return the filename of DB.
 If SHORTENED is non-nil, return only the filename part, otherwise
-return the full path."
-  (if shortened
-      (file-name-nondirectory (ebib--db-struct-filename db))
-    (ebib--db-struct-filename db)))
+return the full path.  If DB is nil, return nil."
+  (when db
+    (if shortened
+        (file-name-nondirectory (ebib--db-struct-filename db))
+      (ebib--db-struct-filename db))))
 
 (defun ebib-db-get-modtime (db)
   "Return the mod time stored for DB."
