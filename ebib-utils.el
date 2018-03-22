@@ -37,7 +37,7 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'dash)
+(require 'seq)
 (require 'bibtex)
 (require 'ebib-db)
 
@@ -855,7 +855,7 @@ Currently, the following problems are marked:
 (defvar-local ebib--multiline-info nil "Information about the multiline text being edited.")
 (defvar ebib--log-error nil "Indicates whether an error was logged.")
 (defvar-local ebib--local-bibtex-filenames nil "A list of a buffer's .bib file(s)")
-(put 'ebib--local-bibtex-filenames 'safe-local-variable (lambda (v) (null (--remove (stringp it) v))))
+(put 'ebib--local-bibtex-filenames 'safe-local-variable (lambda (v) (null (seq-remove #'stringp v))))
 
 ;; The databases.
 
@@ -1270,8 +1270,10 @@ form (\"<variable>\" \"<value>\"). If STR is not a local variable
 block, the return value is nil."
   (let ((vars (split-string str "[{}\n]+" t "[{} \t\r]+")))
     (when (and (string= (car vars) "Local Variables:")
-               (string= (-last-item vars) "End:"))
-      (--map (split-string it ": " t "[ \t]+") (-slice vars 1 -1)))))
+               (string= (car (last vars)) "End:"))
+      (mapcar (lambda (elt)
+                (split-string elt ": " t "[ \t]+"))
+              (seq-subseq vars 1 -1)))))
 
 (defun ebib--get-dialect (db)
   "Get the dialect of DB.
@@ -1287,10 +1289,10 @@ DIALECT must be a symbol, possible values are listed in
 `bibtex-dialect-list'.  If OVERWRITE is non-nil, overwrite an
 existing dialect variable, otherwise do nothing.  The return
 value is the (un)modified list."
-  (let ((ind (--find-index (string= (car it) "bibtex-dialect") vars)))
-    (if ind
+  (let ((item (seq-find (lambda (elt) (string= (car elt) "bibtex-dialect")) vars)))
+    (if item
         (when overwrite
-          (setq vars (-replace-at ind (list "bibtex-dialect" (symbol-name dialect)) vars)))
+          (setq vars (setcdr item (symbol-name dialect))))
       (setq vars (push (list "bibtex-dialect" (symbol-name dialect)) vars)))
     vars))
 
@@ -1298,7 +1300,9 @@ value is the (un)modified list."
   "Delete the dialect definition from VARS.
 VARS is a list as returned by `ebib--local-vars-to-list'.  VARS is
 not modified, instead the new list is returned."
-  (--remove (string= (car it) "bibtex-dialect") vars))
+  (seq-remove (lambda (elt)
+                (string= (car elt) "bibtex-dialect"))
+              vars))
 
 ;; The numeric prefix argument is 1 if the user gave no prefix argument at all.
 ;; The raw prefix argument is not always a number.  So we need to do our own
@@ -1572,7 +1576,9 @@ which ENTRY-TYPE is an alias."
     (when (memq type '(optional extra all))
       (setq optional (mapcar #'car (nth 4 (assoc-string entry-type (bibtex-entry-alist dialect) 'case-fold)))))
     (when (memq type '(all extra))
-      (setq extra (--remove (member-ignore-case it (append required optional)) (cdr (assq dialect ebib-extra-fields)))))
+      (setq extra (seq-remove (lambda (elt)
+                                (member-ignore-case elt (append required optional)))
+                              (cdr (assq dialect ebib-extra-fields)))))
     (cond
      ((eq type 'required) required)
      ((eq type 'optional) optional)
@@ -1591,7 +1597,9 @@ in `bibtex-dialect-list' or NIL, in which case the value of
 `ebib-bibtex-dialect' is used."
   (or dialect (setq dialect ebib-bibtex-dialect))
   (let ((fields (ebib--list-fields (cdr (assoc "=type=" entry)) 'all dialect)))
-    (--remove (member-ignore-case (car it) (cons "=type=" fields)) entry)))
+    (seq-remove (lambda (elt)
+                  (member-ignore-case (car elt) (cons "=type=" fields)))
+                entry)))
 
 (defun ebib--list-entry-types (&optional dialect include-aliases)
   "Return a list of entry types.
@@ -1617,7 +1625,7 @@ Possible values for DIALECT are those listed in
   (or (cdr (assq dialect ebib--unique-field-alist))
       (let (fields)
         (mapc (lambda (entry)
-                (setq fields (-union fields (ebib--list-fields (car entry) 'all dialect))))
+                (setq fields (seq-uniq (seq-concatenate 'list fields (ebib--list-fields (car entry) 'all dialect)))))
               (bibtex-entry-alist dialect))
         (push (cons dialect fields) ebib--unique-field-alist)
         fields)))

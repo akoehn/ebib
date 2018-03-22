@@ -73,7 +73,7 @@ a logical `not' is applied to the selection."
          (field (completing-read (format "Filter: %s<field> contains <search string>%s. Enter field: "
                                          (if (< not 0) "not " "")
                                          (if (< not 0) "" ""))
-                                 (append (list "any" "=type=") (-union (ebib--list-fields-uniquely dialect) (cdr (assq dialect ebib-extra-fields))))
+                                 (append (list "any" "=type=") (seq-uniq (seq-concatenate 'list (ebib--list-fields-uniquely dialect) (cdr (assq dialect ebib-extra-fields)))))
                                  nil nil nil 'ebib--field-history)))
     (let* ((prompt (format "Filter: %s%s contains <search string>%s. Enter %s: "
                            (if (< not 0) "not " "")
