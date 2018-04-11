@@ -8,7 +8,7 @@
 ;; Created: 2003
 ;; Version: 2.11
 ;; Keywords: text bibtex
-;; Package-Requires: ((parsebib "2.3") (emacs "25.1"))
+;; Package-Requires: ((parsebib "2.3") (emacs "25.3"))
 
 ;; Redistribution and use in source and binary forms, with or without
 ;; modification, are permitted provided that the following conditions
