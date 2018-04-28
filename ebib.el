@@ -1306,28 +1306,23 @@ Keys are in the form: <new-entry1>, <new-entry2>, ..."
        (let ((new-db (ebib--next-elem ebib--cur-db ebib--databases))
              (index-buffer (ebib-db-get-buffer ebib--cur-db)))
          (setq ebib--databases (delq ebib--cur-db ebib--databases))
-         <<<<<<< 403f772abb1b47bb8a35637e297ca21b2c48b2eb
          (setq ebib--cur-db (if ebib--databases   ; Do we still have another database loaded?
-                            (or new-db (-last-item ebib--databases))
-                          =======
-                          (setq ebib--cur-db (if ebib--databases   ; do we still have another database loaded?
-                                             (or new-db (car (last ebib--databases)))
-                                           >>>>>>> Remove dash library and replace with seq.el
-                                           nil))
-                          (ebib--update-buffers 'no-refresh)
-                          (kill-buffer index-buffer)
-                          (message "Database closed."))))))
+                            (or new-db (car (last ebib--databases)))
+                          nil))
+         (ebib--update-buffers 'no-refresh)
+         (kill-buffer index-buffer)
+         (message "Database closed."))))))
 
-    (defun ebib-index-sort-ascending (field)
-      "Sort the entries in the index buffer in ascending order.
+(defun ebib-index-sort-ascending (field)
+  "Sort the entries in the index buffer in ascending order.
 Sort key is FIELD, which must be one of the fields specified in
 `ebib-index-columns'."
-      (interactive (list (completing-read "Sort field (ascending): " (mapcar #'car
-                                                                             (seq-filter (lambda (elt)
-                                                                                           (nth 2 elt))
-                                                                                         ebib-index-columns))
-                                          nil t nil 'ebib--field-history)))
-      (ebib--index-sort field 'ascend))
+  (interactive (list (completing-read "Sort field (ascending): " (mapcar #'car
+                                                                         (seq-filter (lambda (elt)
+                                                                                       (nth 2 elt))
+                                                                                     ebib-index-columns))
+                                      nil t nil 'ebib--field-history)))
+  (ebib--index-sort field 'ascend))
 
     (defun ebib-index-sort-descending (field)
       "Sort the entries in the index buffer in descending order.
