@@ -411,7 +411,7 @@ may also result in an error."
     (when result
       (ebib--set-modified t db)
       (when (and timestamp ebib-use-timestamp)
-        (ebib-db-set-field-value "timestamp" (format-time-string ebib-timestamp-format) entry-key db 'overwrite)))
+        (ebib-set-field-value "timestamp" (format-time-string ebib-timestamp-format) entry-key db 'overwrite)))
     result))
 
 (defun ebib--list-keys ()
@@ -1433,7 +1433,7 @@ formatting the entry."
     (when entry
       (insert (format "@%s{%s,\n" (cdr (assoc "=type=" entry)) key))
       (mapc (lambda (field)
-              (unless (or (not (cdr field)) ; Deleted fields have their value set to nil.  See `ebib-db-set-field-value'.
+              (unless (or (not (cdr field)) ; Deleted fields have their value set to nil. See `ebib-set-field-value'.
                           (ebib--special-field-p (car field))
                           (and (cl-equalp (car field) "timestamp") timestamp ebib-use-timestamp))
                 (insert (format "\t%s = %s,\n" (car field) (cdr field)))))
@@ -2584,11 +2584,11 @@ the current entry."
                                  (new-conts (if conts
                                                 (concat conts ebib-keywords-separator keywords)
                                               keywords)))
-                            (ebib-db-set-field-value "keywords"
-                                                 (if ebib-keywords-field-keep-sorted
-                                                     (ebib--keywords-sort new-conts)
-                                                   new-conts)
-                                                 entry-key ebib--cur-db 'overwrite))))
+                            (ebib-set-field-value "keywords"
+                                              (if ebib-keywords-field-keep-sorted
+                                                  (ebib--keywords-sort new-conts)
+                                                new-conts)
+                                              entry-key ebib--cur-db 'overwrite))))
     (let* ((minibuffer-local-completion-map (make-composed-keymap '(keymap (32)) minibuffer-local-completion-map))
            (collection (ebib--keywords-for-database ebib--cur-db))
            (keywords (ebib--completing-read-keywords collection)))
@@ -2937,7 +2937,7 @@ was called interactively."
   (interactive "sField: ")
   ;; We store the field with a nil value and let the user edit it later.
   (let ((key (ebib--get-key-at-point)))
-    (if (not (ebib-db-set-field-value field nil key ebib--cur-db 'noerror))
+    (if (not (ebib-set-field-value field nil key ebib--cur-db 'noerror))
         (message "Field `%s' already has a value in entry `%s'" field key)
       (ebib--update-entry-buffer)
       (re-search-forward (concat "^" field))
@@ -2948,7 +2948,7 @@ was called interactively."
   "Edit the entry type."
   (ebib--ifstring (new-type (completing-read "type: " (ebib--list-entry-types (ebib--get-dialect ebib--cur-db)) nil t))
       (progn
-        (ebib-db-set-field-value "=type=" new-type (ebib--get-key-at-point) ebib--cur-db 'overwrite 'unbraced)
+        (ebib-set-field-value "=type=" new-type (ebib--get-key-at-point) ebib--cur-db 'overwrite 'unbraced)
         (ebib--update-entry-buffer)
         (ebib--set-modified t))))
 
@@ -2956,7 +2956,7 @@ was called interactively."
   "Edit cross-referencing FIELD."
   (ebib--ifstring (key (completing-read (format "Key to insert in `%s': " field) (ebib-db-list-keys ebib--cur-db) nil t nil 'ebib--key-history))
       (progn
-        (ebib-db-set-field-value field key (ebib--get-key-at-point) ebib--cur-db 'overwrite)
+        (ebib-set-field-value field key (ebib--get-key-at-point) ebib--cur-db 'overwrite)
         (ebib--redisplay-current-field)
         (ebib--set-modified t))))
 
@@ -2972,13 +2972,13 @@ was called interactively."
                        (new-conts (if conts
                                       (concat conts ebib-keywords-separator keyword)
                                     keyword)))
-                  (ebib-db-set-field-value "keywords"
-                                       (if ebib-keywords-field-keep-sorted
-                                           (ebib--keywords-sort new-conts)
-                                         new-conts)
-                                       (ebib--get-key-at-point)
-                                       ebib--cur-db
-                                       'overwrite)
+                  (ebib-set-field-value "keywords"
+                                    (if ebib-keywords-field-keep-sorted
+                                        (ebib--keywords-sort new-conts)
+                                      new-conts)
+                                    (ebib--get-key-at-point)
+                                    ebib--cur-db
+                                    'overwrite)
                   (unless (member keyword collection)
                     (ebib--keywords-add-keyword keyword ebib--cur-db))
                   (ebib--redisplay-current-field)
@@ -3008,7 +3008,7 @@ otherwise they are stored as absolute paths."
                        (new-conts (if conts
                                       (concat conts ebib-filename-separator file-name)
                                     file-name)))
-                  (ebib-db-set-field-value ebib-file-field new-conts (ebib--get-key-at-point) ebib--cur-db 'overwrite)
+                  (ebib-set-field-value ebib-file-field new-conts (ebib--get-key-at-point) ebib--cur-db 'overwrite)
                   (ebib--redisplay-current-field)
                   (ebib--set-modified t))
              finally return (ebib-db-modified-p ebib--cur-db)))) ; Return t if the field was modified.
@@ -3054,7 +3054,7 @@ If FILE is not in (a subdirectory of) one of the directories in
       (ebib--ifstring (new-contents (read-string (format "%s: " cur-field)
                                              (if init-contents
                                                  (cons init-contents 0))))
-          (ebib-db-set-field-value cur-field new-contents (ebib--get-key-at-point) ebib--cur-db 'overwrite unbraced?)
+          (ebib-set-field-value cur-field new-contents (ebib--get-key-at-point) ebib--cur-db 'overwrite unbraced?)
         (ebib-db-remove-field-value cur-field (ebib--get-key-at-point) ebib--cur-db))
       (ebib--redisplay-current-field)
       (ebib--set-modified t))))
@@ -3188,7 +3188,7 @@ Prefix argument ARG functions as with \\[yank] / \\[yank-pop]."
                                          ((eq arg '-) -2)
                                          (t (1- arg))))))
         (when new-contents
-          (ebib-db-set-field-value field new-contents (ebib--get-key-at-point) ebib--cur-db 'overwrite)
+          (ebib-set-field-value field new-contents (ebib--get-key-at-point) ebib--cur-db 'overwrite)
           (ebib--redisplay-current-field)
           (ebib--redisplay-index-item field)
           (ebib--set-modified t))))))
@@ -3219,7 +3219,7 @@ The deleted text is not put in the kill ring."
             (ebib-edit-field)   ; which we must then store unbraced.
             (setq contents (ebib-get-field-value field (ebib--get-key-at-point) ebib--cur-db 'noerror)))
           (when contents ; We must check to make sure the user entered some value.
-            (ebib-db-set-field-value field contents (ebib--get-key-at-point) ebib--cur-db 'overwrite (not (ebib-db-unbraced-p contents)))
+            (ebib-set-field-value field contents (ebib--get-key-at-point) ebib--cur-db 'overwrite (not (ebib-db-unbraced-p contents)))
             (ebib--redisplay-current-field)
             (ebib--set-modified t)))))))
 
@@ -3244,7 +3244,7 @@ The deleted text is not put in the kill ring."
           (with-selected-window (get-buffer-window (ebib--buffer 'index))
             (let ((string (completing-read "Abbreviation to insert: " strings nil t)))
               (when string
-                (ebib-db-set-field-value field string (ebib--get-key-at-point) ebib--cur-db 'overwrite 'unbraced)
+                (ebib-set-field-value field string (ebib--get-key-at-point) ebib--cur-db 'overwrite 'unbraced)
                 (ebib--set-modified t))))
           (ebib--redisplay-current-field)
           (ebib-next-field))))))
@@ -3621,7 +3621,7 @@ The text being edited is stored before saving the database."
               (field (cl-fourth ebib--multiline-info)))
           (if (string= text "")
               (ebib-db-remove-field-value field key db)
-            (ebib-db-set-field-value field text key db 'overwrite)))))
+            (ebib-set-field-value field text key db 'overwrite)))))
       (set-buffer-modified-p nil)))
   (ebib--set-modified t))
 

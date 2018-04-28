@@ -1301,6 +1301,58 @@ argument to a function or not."
   (when (numberp num)
     num))
 
+;;; Functions for database access
+;;
+;; We can mostly use the ebib-db-* functions directly, but we don't want to handle
+;; the braces in `ebib-db.el', so we define some extra access functions here.
+
+(defun ebib-set-field-value (field value key db &optional if-exists nobrace)
+  "Set FIELD to VALUE in entry KEY in database DB.
+
+IF-EXISTS determines what to do if the field already exists.  If
+it is `overwrite', the existing value is overwritten.  If it is
+`noerror', the value is not stored and the function returns nil.
+If it is nil (or any other value), an error is raised.
+
+IF-EXISTS can also be the symbol `append' or a string.  In this
+case, the new value is appended to the old value, separated by a
+space or by the string.  Before appending, braces/double quotes
+are removed from both values.  Whether braces are added to the
+new value depends on the value of NOBRACE.
+
+If NOBRACE is t, the value is stored without braces.  If it is
+nil, braces are added if not already present.  NOBRACE may also be
+the symbol `as-is', in which case the value is stored as is.
+
+A field can be removed from the entry by passing nil as VALUE and
+setting IF-EXISTS to 'overwrite.
+
+Return t upon success, or nil if the value could not be stored."
+  (if (eq if-exists 'append)
+      (setq if-exists " "))
+  (let ((old-value (ebib-db-get-field-value field key db 'norerror)))
+    ;; If the field has a value, decide what to do:
+    (if old-value
+        (cond
+         ((eq if-exists 'overwrite)
+          (setq old-value nil))
+         ((stringp if-exists)
+          (setq value (concat (ebib-db-unbrace old-value) if-exists (ebib-db-unbrace value)))
+          (setq old-value nil))
+         ((not (eq if-exists 'noerror))
+          (error "[Ebib] Field `%s' exists in entry `%s'; cannot overwrite" field key))))
+    ;; If there is (still) an old value, do nothing.
+    (unless old-value
+      ;; Otherwise overwrite the existing entry. Note that to delete a field, we
+      ;; set its value to nil, rather than removing it altogether from the
+      ;; database. In `ebib--display-fields', such fields are ignored, and they're
+      ;; not saved.
+      (if (and value nobrace)
+          (unless (eq nobrace 'as-is)
+            (setq value (ebib-db-unbrace value)))
+        (setq value (ebib-db-brace value)))
+      (ebib-db-set-field-value field value key db 'overwrite))))
+
 (defun ebib-get-field-value (field key db &optional noerror unbraced xref)
   "Return the value of FIELD in entry KEY in database DB.
 If FIELD or KEY does not exist, trigger an error, unless NOERROR
@@ -1381,6 +1433,110 @@ inherit a value, this function returns nil."
                                 (cl-third (assoc-string "all" ebib-biblatex-inheritances 'case-fold)))))
       (or (car (rassoc (downcase target-field) inheritance))
           target-field))))
+
+(defun ebib-set-string (abbr value db &optional if-exists)
+  "Set the @string definition ABBR to VALUE in database DB.
+If ABBR does not exist, create it.  VALUE is enclosed in braces if
+it isn't already.
+
+IF-EXISTS determines what to do when ABBR already exists.  If it
+is `overwrite', the new string replaces the existing one.  If it is
+`noerror', the string is not stored and the function returns nil.
+If it is nil (or any other value), an error is raised.
+
+In order to remove a @STRING definition, pass nil as VALUE and
+set IF-EXISTS to `overwrite'."
+  (let* ((old-string (ebib-db-get-string abbr db 'noerror))
+	 (strings-list (delete (cons abbr old-string) (ebib--db-struct-strings db))))
+    (when old-string
+      (cond
+       ((eq if-exists 'overwrite)
+	(setq old-string nil))
+       ((not (eq if-exists 'noerror))
+	(error "[Ebib] @STRING abbreviation `%s' exists in database %s" abbr (ebib-db-get-filename db 'short)))))
+    (unless old-string
+      (setf (ebib--db-struct-strings db)
+	    (if (null value)
+                strings-list
+              ;; put the new string at the end of the list, to keep them in
+              ;; the order in which they appear in the .bib file. this is
+              ;; preferable for version control.
+              (append strings-list (list (cons abbr (ebib-db-brace value)))))))))
+
+
+;; EBIB-DB-UNBRACED-P determines if STRING is enclosed in braces.  Note that we
+;; cannot do this by simply checking whether STRING begins with { and ends with
+;; } (or begins and ends with "), because something like "{abc} # D # {efg}"
+;; would then be incorrectly recognised as braced.  So we need to do the
+;; following: take out everything that is between braces or quotes, and see if
+;; anything is left.  If there is, the original string was braced, otherwise it
+;; was not.
+
+;; So we first check whether the string begins with { or ".  If not, we
+;; certainly have an unbraced string.  (EBIB-DB-UNBRACED-P recognises this
+;; through the default clause of the COND.)  If the first character is { or ",
+;; we first take out every occurrence of backslash-escaped { and } or ", so that
+;; the rest of the function does not get confused over them.
+
+;; Then, if the first character is {, REMOVE-FROM-STRING takes out every
+;; occurrence of the regex "{[^{]*?}", which translates to "the smallest string
+;; that starts with { and ends with }, and does not contain another {.  IOW, it
+;; takes out the innermost braces and their contents.  Because braces may be
+;; embedded, we have to repeat this step until no more balanced braces are found
+;; in the string.  (Note that it would be unwise to check for just the occurrence
+;; of { or }, because that would throw EBIB-DB-UNBRACED-P in an infinite loop if
+;; a string contains an unbalanced brace.)
+
+;; For strings beginning with " we do the same, except that it is not
+;; necessary to repeat this in a WHILE loop, for the simple reason that
+;; strings surrounded with double quotes cannot be embedded; i.e.,
+;; "ab"cd"ef" is not a valid (BibTeX) string, while {ab{cd}ef} is.
+
+;; Note: because these strings are to be fed to BibTeX and ultimately
+;; (La)TeX, it might seem that we don't need to worry about strings
+;; containing unbalanced braces, because (La)TeX would choke on them.  But
+;; the user may inadvertently enter such a string, and we therefore need to
+;; be able to handle it.  (Alternatively, we could perform a check on
+;; strings and warn the user.)
+
+(defun ebib-db-unbraced-p (string)
+  "Non-nil if STRING is not enclosed in braces or quotes."
+  (cl-flet ((remove-from-string (string remove)
+                                (apply #'concat (split-string string remove))))
+    (when (stringp string)
+      (cond
+       ((eq (string-to-char string) ?\{)
+        ;; first, remove all escaped { and } from the string:
+        (setq string (remove-from-string (remove-from-string string "[\\][{]")
+                                         "[\\][}]"))
+        ;; then remove the innermost braces with their contents and continue until
+        ;; no more braces are left.
+        (while (and (member ?\{ (string-to-list string)) (member ?\} (string-to-list string)))
+          (setq string (remove-from-string string "{[^{]*?}")))
+        ;; if STRING is not empty, the original string contains material not in braces
+        (> (length string) 0))
+       ((eq (string-to-char string) ?\")
+        ;; remove escaped ", then remove any occurrences of balanced quotes with
+        ;; their contents and check for the length of the remaining string.
+        (> (length (remove-from-string (remove-from-string string "[\\][\"]")
+                                       "\"[^\"]*?\""))
+           0))
+       (t t)))))
+
+(defun ebib-db-unbrace (string)
+  "Convert STRING to its unbraced counterpart.
+If STRING is already unbraced, do nothing."
+  (if (and (stringp string)
+           (not (ebib-db-unbraced-p string)))
+      (substring string 1 -1)
+    string))
+
+(defun ebib-db-brace (string)
+  "Put braces around STRING.
+If STRING is already braced, do nothing."
+  (if (ebib-db-unbraced-p string)
+      (concat "{" string "}")
+    string))
 
 (defun ebib--list-fields (entry-type type dialect)
   "List the fields of ENTRY-TYPE.
