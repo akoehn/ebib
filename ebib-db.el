@@ -279,7 +279,7 @@ braces.
 OVERWRITE determines what to do when ABBR already exists.  If it
 is t, the new string replaces the existing one.  If it is nil,
 the string is not stored and the function returns nil.  If it is
-'error, an error is raised.
+the symbol `error', an error is raised.
 
 In order to remove a @STRING definition, pass nil as VALUE and
 set IF-EXISTS to `overwrite'."
