@@ -272,7 +272,7 @@ not change the default sort."
 (defcustom ebib-field-transformation-functions '(("Title" . ebib-clean-TeX-markup)
                                              ("Doi" . ebib-display-www-link)
                                              ("Url" . ebib-display-www-link)
-                                             ("Note" . ebib-display-note-symbol))
+                                             ("Note" . ebib-notes-display-note-symbol))
   "Functions transforming field contents to appropriate forms.
 Each function should accept three arguments, the field to be
 displayed, the key of the entry being displayed, and the database
