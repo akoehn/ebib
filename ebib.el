@@ -209,7 +209,7 @@ If MARK is non-nil, `ebib-mark-face' is applied to the entry."
   (with-current-ebib-buffer 'strings
     (let ((inhibit-read-only t))
       (let* ((string (ebib--current-string))
-             (val (ebib-db-get-string string ebib--cur-db nil 'unbraced)))
+             (val (ebib-get-string string ebib--cur-db nil 'unbraced)))
         (delete-region (point-at-bol) (point-at-eol))
         (insert (format "%-18s %s" string
                         (if (ebib--multiline-p val)
@@ -3437,7 +3437,7 @@ beginning of the current line."
     (let ((inhibit-read-only t))
       (erase-buffer)
       (cl-dolist (elem (sort (ebib-db-list-strings ebib--cur-db) #'string<))
-        (let ((str (ebib-db-get-string elem ebib--cur-db 'noerror 'unbraced)))
+        (let ((str (ebib-get-string elem ebib--cur-db 'noerror 'unbraced)))
           (insert (format "%-18s %s\n" elem
                           (if (ebib--multiline-p str)
                               (concat "+" (ebib--first-line str))
@@ -3450,7 +3450,7 @@ beginning of the current line."
 When the user enters an empty string, the value is not changed."
   (interactive)
   (let* ((string (ebib--current-string))
-         (init-contents (ebib-db-get-string string ebib--cur-db 'noerror 'unbraced)))
+         (init-contents (ebib-get-string string ebib--cur-db 'noerror 'unbraced)))
     (ebib--ifstring (new-contents (read-string (format "%s: " string)
                                            (if init-contents
                                                (cons init-contents 0)
@@ -3465,7 +3465,7 @@ When the user enters an empty string, the value is not changed."
 (defun ebib-copy-string-contents ()
   "Copy the contents of the current string to the kill ring."
   (interactive)
-  (let ((contents (ebib-db-get-string (ebib--current-string) ebib--cur-db nil 'unbraced)))
+  (let ((contents (ebib-get-string (ebib--current-string) ebib--cur-db nil 'unbraced)))
     (kill-new contents)
     (message "String value copied.")))
 
