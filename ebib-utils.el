@@ -1350,7 +1350,7 @@ Return t upon success, or nil if the value could not be stored."
          ((eq if-exists 'overwrite)
           (setq old-value nil))
          ((stringp if-exists)
-          (setq value (concat (ebib-db-unbrace old-value) if-exists (ebib-db-unbrace value)))
+          (setq value (concat (ebib-unbrace old-value) if-exists (ebib-unbrace value)))
           (setq old-value nil))
          ((not (eq if-exists 'noerror))
           (error "[Ebib] Field `%s' exists in entry `%s'; cannot overwrite" field key))))
@@ -1362,8 +1362,8 @@ Return t upon success, or nil if the value could not be stored."
       ;; not saved.
       (if (and value nobrace)
           (unless (eq nobrace 'as-is)
-            (setq value (ebib-db-unbrace value)))
-        (setq value (ebib-db-brace value)))
+            (setq value (ebib-unbrace value)))
+        (setq value (ebib-brace value)))
       (ebib-db-set-field-value field value key db 'overwrite))))
 
 (defun ebib-get-field-value (field key db &optional noerror unbraced xref)
@@ -1386,7 +1386,7 @@ string has the text property `ebib--alias' with value t."
          (xref-key)
          (alias))
     (when (and (not value) xref)      ; Check if there's a cross-reference.
-      (setq xref-key (ebib-db-unbrace (ebib-db-get-field-value "crossref" key db 'noerror)))
+      (setq xref-key (ebib-unbrace (ebib-db-get-field-value "crossref" key db 'noerror)))
       (when xref-key
         (let ((xref-db (ebib--find-db-for-key xref-key db)))
           (when xref-db
@@ -1403,7 +1403,7 @@ string has the text property `ebib--alias' with value t."
     (unless (= 0 (length value)) ; (length value) == 0 if value is nil or if value is "".
       (setq value (copy-sequence value)) ; Copy the value so we can add text properties.
       (when unbraced
-        (setq value (ebib-db-unbrace value)))
+        (setq value (ebib-unbrace value)))
       (when alias
         (add-text-properties 0 1 '(ebib--alias t) value))
       (when xref
@@ -1447,37 +1447,36 @@ inherit a value, this function returns nil."
       (or (car (rassoc (downcase target-field) inheritance))
           target-field))))
 
-(defun ebib-set-string (abbr value db &optional if-exists)
+;; ebib-set-string is just a front-end for `ebib-db-set-string'.  The only additional
+;; functionality is that it wraps the string value in braces if it isn't
+;; already.  We need to do this because the brace functions are in this file and
+;; `ebib-db.el' cannot depend on `ebib-utils.el' (because `ebib-utils.el' already depends on
+;; `ebib-db.el').  Similar considerations apply to `ebib-get-string' below.
+
+(defun ebib-set-string (abbr value db &optional overwrite)
   "Set the @string definition ABBR to VALUE in database DB.
-If ABBR does not exist, create it.  VALUE is enclosed in braces if
-it isn't already.
+If ABBR does not exist, create it.  OVERWRITE functions as in
+`ebib-db-set-string'.  VALUE is enclosed in braces if it isn't
+already.
 
-IF-EXISTS determines what to do when ABBR already exists.  If it
-is `overwrite', the new string replaces the existing one.  If it is
-`noerror', the string is not stored and the function returns nil.
-If it is nil (or any other value), an error is raised.
+This function basically just calls `ebib-db-set-string' to do the
+  real work."
+  (ebib-db-set-string abbr (if (ebib-braced-p value)
+                           value
+                         (ebib-brace value))
+                  db overwrite))
 
-In order to remove a @STRING definition, pass nil as VALUE and
-set IF-EXISTS to `overwrite'."
-  (let* ((old-string (ebib-db-get-string abbr db 'noerror))
-	 (strings-list (delete (cons abbr old-string) (ebib--db-struct-strings db))))
-    (when old-string
-      (cond
-       ((eq if-exists 'overwrite)
-	(setq old-string nil))
-       ((not (eq if-exists 'noerror))
-	(error "[Ebib] @STRING abbreviation `%s' exists in database %s" abbr (ebib-db-get-filename db 'short)))))
-    (unless old-string
-      (setf (ebib--db-struct-strings db)
-	    (if (null value)
-                strings-list
-              ;; put the new string at the end of the list, to keep them in
-              ;; the order in which they appear in the .bib file. this is
-              ;; preferable for version control.
-              (append strings-list (list (cons abbr (ebib-db-brace value)))))))))
+(defun ebib-get-string (abbr db &optional noerror unbraced)
+  "Return the value of @STRING definition ABBR in database DB.
+NOERROR functions as in `ebib-db-get-string', which this
+functions calls to get the actual value.  The braces around the
+value are removed if UNBRACED is non-nil."
+  (let ((value (ebib-db-get-string abbr db noerror)))
+    (if unbraced
+        (ebib-unbrace value)
+      value)))
 
-
-;; EBIB-DB-UNBRACED-P determines if STRING is enclosed in braces.  Note that we
+;; EBIB-UNBRACED-P determines if STRING is enclosed in braces.  Note that we
 ;; cannot do this by simply checking whether STRING begins with { and ends with
 ;; } (or begins and ends with "), because something like "{abc} # D # {efg}"
 ;; would then be incorrectly recognised as braced.  So we need to do the
@@ -1486,7 +1485,7 @@ set IF-EXISTS to `overwrite'."
 ;; was not.
 
 ;; So we first check whether the string begins with { or ".  If not, we
-;; certainly have an unbraced string.  (EBIB-DB-UNBRACED-P recognises this
+;; certainly have an unbraced string.  (EBIB-UNBRACED-P recognises this
 ;; through the default clause of the COND.)  If the first character is { or ",
 ;; we first take out every occurrence of backslash-escaped { and } or ", so that
 ;; the rest of the function does not get confused over them.
@@ -1497,7 +1496,7 @@ set IF-EXISTS to `overwrite'."
 ;; takes out the innermost braces and their contents.  Because braces may be
 ;; embedded, we have to repeat this step until no more balanced braces are found
 ;; in the string.  (Note that it would be unwise to check for just the occurrence
-;; of { or }, because that would throw EBIB-DB-UNBRACED-P in an infinite loop if
+;; of { or }, because that would throw EBIB-UNBRACED-P in an infinite loop if
 ;; a string contains an unbalanced brace.)
 
 ;; For strings beginning with " we do the same, except that it is not
@@ -1512,7 +1511,7 @@ set IF-EXISTS to `overwrite'."
 ;; be able to handle it.  (Alternatively, we could perform a check on
 ;; strings and warn the user.)
 
-(defun ebib-db-unbraced-p (string)
+(defun ebib-unbraced-p (string)
   "Non-nil if STRING is not enclosed in braces or quotes."
   (cl-flet ((remove-from-string (string remove)
                                 (apply #'concat (split-string string remove))))
@@ -1536,18 +1535,18 @@ set IF-EXISTS to `overwrite'."
            0))
        (t t)))))
 
-(defun ebib-db-unbrace (string)
+(defun ebib-unbrace (string)
   "Convert STRING to its unbraced counterpart.
 If STRING is already unbraced, do nothing."
   (if (and (stringp string)
-           (not (ebib-db-unbraced-p string)))
+           (not (ebib-unbraced-p string)))
       (substring string 1 -1)
     string))
 
-(defun ebib-db-brace (string)
+(defun ebib-brace (string)
   "Put braces around STRING.
 If STRING is already braced, do nothing."
-  (if (ebib-db-unbraced-p string)
+  (if (ebib-unbraced-p string)
       (concat "{" string "}")
     string))
 

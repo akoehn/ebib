@@ -273,8 +273,7 @@ otherwise return nil."
 
 (defun ebib-db-set-string (abbr value db &optional overwrite)
   "Set the @string definition ABBR to VALUE in database DB.
-If ABBR does not exist, create it.  VALUE should be enclosed in
-braces.
+If ABBR does not exist, create it.
 
 OVERWRITE determines what to do when ABBR already exists.  If it
 is t, the new string replaces the existing one.  If it is nil,
@@ -288,7 +287,8 @@ set IF-EXISTS to `overwrite'."
     (if old-string
         (cond
          ((eq overwrite 'error)
-          (error "[Ebib] @STRING abbreviation `%s' exists in database %s" abbr (ebib-db-get-filename db 'short)))
+          (error "[Ebib] @STRING abbreviation `%s' exists in database %s"
+                 abbr (ebib-db-get-filename db 'short)))
          ((and overwrite value)
           (setcdr (assoc-string abbr strings-list) value)
           (setq value nil)) ; Set `value' to nil to indicate we're done.
@@ -308,19 +308,16 @@ set IF-EXISTS to `overwrite'."
   "Remove @STRING definition ABBR ttfrom DB."
   (ebib-db-set-string abbr nil db 'overwrite))
 
-(defun ebib-db-get-string (abbr db &optional noerror unbraced)
+(defun ebib-db-get-string (abbr db &optional noerror)
   "Return the value of @STRING definition ABBR in database DB.
 If ABBR does not exist, trigger an error, unless NOERROR is
-non-nil, in which case return nil.  If UNBRACED is non-nil, return
-the value without braces."
+non-nil, in which case return nil."
   ;; I assume abbreviations should be case-sensitive, so I use assoc
   ;; instead of assoc-string here.
   (let ((value (cdr (assoc abbr (ebib--db-struct-strings db)))))
     (unless (or value noerror)
       (error "[Ebib] @STRING abbreviation `%s' does not exist" abbr))
-    (if unbraced
-        (ebib-db-unbrace value)
-      value)))
+    value))
 
 (defun ebib-db-get-all-strings (db)
   "Return the alist containing all @STRING definitions in DB."

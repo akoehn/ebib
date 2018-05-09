@@ -241,8 +241,8 @@ If MARK is non-nil, `ebib-mark-face' is applied to the entry."
                (not (ebib-db-get-entry key db 'noerror)))
           (setq value (propertize value 'face 'ebib-warning-face)))
       (if (cl-equalp field "keywords")
-          (let* ((unbraced (ebib-db-unbraced-p value))
-                 (keywords (ebib--keywords-to-list (ebib-db-unbrace value)))
+          (let* ((unbraced (ebib-unbraced-p value))
+                 (keywords (ebib--keywords-to-list (ebib-unbrace value)))
                  (new-keywords (ebib--keywords-remove-existing keywords ebib--cur-db))
                  (new-value (mapconcat (lambda (keyword)
                                          (if (member-ignore-case keyword new-keywords)
@@ -252,10 +252,10 @@ If MARK is non-nil, `ebib-mark-face' is applied to the entry."
                                        ebib-keywords-separator)))
             (setq value (if unbraced
                             new-value
-                          (ebib-db-brace new-value)))))
-      (if (ebib-db-unbraced-p value)
+                          (ebib-brace new-value)))))
+      (if (ebib-unbraced-p value)
           (setq raw "*")
-        (setq value (ebib-db-unbrace value))) ; We have to make the value look nice.
+        (setq value (ebib-unbrace value))) ; We have to make the value look nice.
       (when match-str
         (cl-multiple-value-setq (value matched) (ebib--match-all-in-string match-str value)))
       (when (ebib--multiline-p value)
@@ -1018,10 +1018,10 @@ Return value is the string if one was read, nil otherwise."
          (abbr (car def))
          (string (cdr def)))
     (if def
-        (if (ebib-db-set-string abbr string db 'noerror)
+        (if (ebib-set-string abbr string db)
             string
           (ebib--log 'warning (format "Line %d: @STRING definition `%s' duplicated. Skipping."
-                                      (line-number-at-pos) abbr)))
+                                  (line-number-at-pos) abbr)))
       (ebib--log 'error "Error: illegal string identifier at line %d. Skipping" (line-number-at-pos)))))
 
 (defun ebib--read-preamble (db)
@@ -1158,9 +1158,9 @@ is replaced with a number in ascending sequence."
         (push props fields))
        ((cl-equalp (car props) ebib-file-field)
         (let ((short-file (ebib--file-relative-name (expand-file-name (cdr props)))))
-          (push (cons ebib-file-field (ebib-db-brace short-file)) fields)))
+          (push (cons ebib-file-field (ebib-brace short-file)) fields)))
        (t
-        (push (cons (car props) (ebib-db-brace (cdr props))) fields))))
+        (push (cons (car props) (ebib-brace (cdr props))) fields))))
     ;; Check for required.
     (unless entry-key
       (setq entry-key (ebib--generate-tempkey db)))
@@ -3105,8 +3105,8 @@ If FILE is not in (a subdirectory of) one of the directories in
     (if (ebib--multiline-p init-contents)
         (ebib-edit-multiline-field)     ; This always returns nil.
       (when init-contents
-        (setq unbraced? (ebib-db-unbraced-p init-contents))
-        (setq init-contents (ebib-db-unbrace init-contents)))
+        (setq unbraced? (ebib-unbraced-p init-contents))
+        (setq init-contents (ebib-unbrace init-contents)))
       (ebib--ifstring (new-contents (read-string (format "%s: " cur-field)
                                                  (if init-contents
                                                      (cons init-contents 0))))
@@ -3275,7 +3275,7 @@ The deleted text is not put in the kill ring."
             (ebib-edit-field)   ; which we must then store unbraced.
             (setq contents (ebib-get-field-value field (ebib--get-key-at-point) ebib--cur-db 'noerror)))
           (when contents ; We must check to make sure the user entered some value.
-            (ebib-set-field-value field contents (ebib--get-key-at-point) ebib--cur-db 'overwrite (not (ebib-db-unbraced-p contents)))
+            (ebib-set-field-value field contents (ebib--get-key-at-point) ebib--cur-db 'overwrite (not (ebib-unbraced-p contents)))
             (ebib--redisplay-current-field)
             (ebib--set-modified t)))))))
 
@@ -3285,9 +3285,9 @@ The deleted text is not put in the kill ring."
   (let ((field (ebib--current-field)))
     (unless (member-ignore-case field '("=type=" "crossref" "xref" "related"))
       (let ((text (ebib-get-field-value field (ebib--get-key-at-point) ebib--cur-db 'noerror)))
-        (if (ebib-db-unbraced-p text) ; Unbraced fields cannot be multiline.
+        (if (ebib-unbraced-p text) ; Unbraced fields cannot be multiline.
             (beep)
-          (ebib--multiline-edit (list 'field (ebib-db-get-filename ebib--cur-db) (ebib--get-key-at-point) field) (ebib-db-unbrace text)))))))
+          (ebib--multiline-edit (list 'field (ebib-db-get-filename ebib--cur-db) (ebib--get-key-at-point) field) (ebib-unbrace text)))))))
 
 (defun ebib-insert-abbreviation ()
   "Insert an abbreviation from the ones defined in the database."
@@ -3456,7 +3456,7 @@ When the user enters an empty string, the value is not changed."
                                                    (cons init-contents 0)
                                                  nil)))
         (progn
-          (ebib-db-set-string string new-contents ebib--cur-db 'overwrite)
+          (ebib-set-string string new-contents ebib--cur-db 'overwrite)
           (ebib--redisplay-current-string)
           (ebib-next-string)
           (ebib--set-modified t))
@@ -3490,7 +3490,7 @@ When the user enters an empty string, the value is not changed."
           (error "[Ebib] %s already exists" new-abbr)
         (ebib--ifstring (new-string (read-string (format "Value for %s: " new-abbr)))
             (progn
-              (ebib-db-set-string new-abbr new-string ebib--cur-db)
+              (ebib-set-string new-abbr new-string ebib--cur-db 'error)
               (let ((inhibit-read-only t))
                 (goto-char (point-min))
                 (insert (format "%-19s %s\n" new-abbr new-string))
@@ -3531,7 +3531,7 @@ to append them to."
            num "All @STRING definitions copied to database %d"
            (lambda (db)
              (mapc (lambda (abbr)
-                     (ebib-db-set-string abbr (ebib-db-get-string abbr ebib--cur-db) db 'noerror))
+                     (ebib-set-string abbr (ebib-db-get-string abbr ebib--cur-db) db))
                    (ebib-db-list-strings ebib--cur-db))))
         (ebib--export-to-file "Export all @STRING definitions to file: "
                               (lambda ()
