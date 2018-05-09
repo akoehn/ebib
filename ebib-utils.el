@@ -1461,9 +1461,9 @@ already.
 
 This function basically just calls `ebib-db-set-string' to do the
   real work."
-  (ebib-db-set-string abbr (if (ebib-braced-p value)
-                           value
-                         (ebib-brace value))
+  (ebib-db-set-string abbr (if (ebib-unbraced-p value)
+                           (ebib-brace value)
+                         value)
                   db overwrite))
 
 (defun ebib-get-string (abbr db &optional noerror unbraced)
