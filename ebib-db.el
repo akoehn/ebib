@@ -299,7 +299,9 @@ set IF-EXISTS to `overwrite'."
       ;; Put the new string at the end of the list, to keep them in the order in
       ;; which they appear in the .bib file.  This is preferable for version
       ;; control.
-      (setcdr (last strings-list) (list (cons abbr value))))
+      (if strings-list
+          (setcdr (last strings-list) (list (cons abbr value)))
+        (setq strings-list (list (cons abbr value)))))
     (setf (ebib--db-struct-strings db) strings-list)))
 
 (defun ebib-db-remove-string (abbr db)
