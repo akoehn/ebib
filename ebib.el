@@ -1353,12 +1353,12 @@ ORDER indicates the sort order and should be either `ascend' or
   "Move to the first BibTeX entry in the database."
   (interactive)
   (ebib--execute-when
-   ((entries)
-    (with-current-ebib-buffer 'index
-                              (goto-char (point-min))
-                              (ebib--update-entry-buffer)))
-   ((default)
-    (beep))))
+    ((entries)
+     (with-current-ebib-buffer 'index
+       (goto-char (point-min))
+       (ebib--update-entry-buffer)))
+    ((default)
+     (beep))))
 
 (defun ebib-goto-last-entry ()
   "Move to the last entry in the BibTeX database."
