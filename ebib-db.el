@@ -62,15 +62,18 @@
 
 (defun ebib-db-clear-database (db)
   "Remove all information in DB.
-The database object itself is retained, only the information in
-it is deleted."
+The database object itself is retained, only the references to
+the relevant data in it is deleted.
+
+Note that the data itself is not destroyed, but may eventually be
+GC'ed, with the exception of the buffer pointed to by the buffer
+field.  This should be killed separately."
   (clrhash (ebib--db-struct-database db))
   (setf (ebib--db-struct-strings db) nil)
   (setf (ebib--db-struct-preamble db) nil)
   (setf (ebib--db-struct-comments db) nil)
   (setf (ebib--db-struct-local-vars db) nil)
   (setf (ebib--db-struct-dialect db) nil)
-  (kill-buffer (ebib--db-struct-buffer db))
   (setf (ebib--db-struct-buffer db) nil)
   (setf (ebib--db-struct-cur-entry db) nil)
   (setf (ebib--db-struct-marked-entries db) nil)
