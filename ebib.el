@@ -346,9 +346,10 @@ fill it."
       (setq index-buffer (ebib--get-or-create-index-buffer ebib--cur-db))
       (setq no-refresh nil)) ; We just created the index buffer, so we need to fill it.
     (setcdr (assq 'index ebib--buffer-alist) index-buffer)
-    (with-selected-window window
-      (with-ebib-window-nondedicated
-        (switch-to-buffer index-buffer)))
+    (when window ; This function is also called from `ebib-import', in which case `window' would be nil.
+      (with-selected-window window
+        (with-ebib-window-nondedicated
+          (switch-to-buffer index-buffer))))
     (with-current-ebib-buffer 'index
       (unless no-refresh
         (let ((inhibit-read-only t))
