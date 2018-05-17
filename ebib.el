@@ -906,8 +906,11 @@ FILE must be a fully expanded filename."
   "Reload database DB from disk."
   (let ((file (ebib-db-get-filename db))
         (cur-key (ebib--db-get-current-entry-key db)))
-    ;; First clear out some variables.
-    (ebib-db-clear-database db)
+    ;; First clear out the database.  Note that this does not destroy DB's
+    ;; index buffer, which is good, because we want to re-use it.
+    (let ((buffer (ebib-db-get-buffer db)))
+      (ebib-db-clear-database db)
+      (ebib-db-set-buffer buffer db))
     ;; Then load the file.
     (ebib--log 'log "%s: Reloading file %s" (format-time-string "%d-%b-%Y: %H:%M:%S") file)
     (ebib-db-set-filename file db)
